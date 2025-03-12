@@ -1,0 +1,146 @@
+ <!DOCTYPE html>  
+ <html>  
+ <head>  
+   <meta charset="utf-8">  
+   <title>Earthquake and Tectonic Plates Visualization</title>  
+   <!-- Load Leaflet CSS -->  
+   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>  
+   <style>  
+     #map {  
+       height: 600px;  
+       width: 100%;  
+     }  
+     .legend {  
+       background: white;  
+       padding: 10px;  
+       line-height: 1.5em;  
+       color: #555;  
+     }  
+     .legend i {  
+       width: 18px;  
+       height: 18px;  
+       float: left;  
+       margin-right: 8px;  
+       opacity: 0.7;  
+     }  
+     .legend h4 {  
+       margin: 0 0 5px;  
+       color: #777;  
+     }  
+   </style>  
+ </head>  
+ <body>  
+   <h1>Earthquake and Tectonic Plates Visualization</h1>  
+   <div id="map"></div>  
+     
+   <!-- Load Leaflet JS -->  
+   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>  
+   <!-- Load D3 for JSON fetching -->  
+   <script src="https://d3js.org/d3.v5.min.js"></script>  
+     
+   <script>  
+     // Initialize the map centered on the USA  
+     var map = L.map("map").setView([37.09, -95.71], 3);  
+       
+     // Create the tile layers  
+     var street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {  
+       attribution: "© OpenStreetMap contributors"  
+     });  
+   
+     var topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {  
+       attribution: '© OpenTopoMap contributors'  
+     });  
+   
+     // Create layer groups  
+     var earthquakes = L.layerGroup();  
+     var tectonicPlates = L.layerGroup();  
+   
+     // Helper functions remain the same  
+     function calculateRadius(magnitude) {  
+       return magnitude * 4;  
+     }  
+       
+     function calculateColor(depth) {  
+       return depth > 90 ? "#d73027" :  
+              depth > 70 ? "#fc8d59" :  
+              depth > 50 ? "#fee08b" :  
+              depth > 30 ? "#d9ef8b" :  
+              depth > 10 ? "#91cf60" :  
+                          "#1a9850";  
+     }  
+       
+     // Fetch and add earthquake data  
+     var earthquakeUrl = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";  
+     d3.json(earthquakeUrl).then(function(data) {  
+       data.features.forEach(function(feature) {  
+         var coords = feature.geometry.coordinates;  
+         var mag = feature.properties.mag;  
+         var depth = coords[2];  
+           
+         L.circle([coords[1], coords[0]], {  
+           radius: calculateRadius(mag) * 1000,  
+           color: calculateColor(depth),  
+           fillColor: calculateColor(depth),  
+           fillOpacity: 0.7,  
+           weight: 1  
+         })  
+         .bindPopup(  
+           "Magnitude: " + mag +  
+           "<br>Location: " + feature.properties.place +  
+           "<br>Depth: " + depth + " km"  
+         )  
+         .addTo(earthquakes);  
+       });  
+     });  
+   
+     // Fetch and add tectonic plate data  
+     var platesUrl = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json";  
+     d3.json(platesUrl).then(function(data) {  
+       L.geoJSON(data, {  
+         color: "orange",  
+         weight: 2  
+       }).addTo(tectonicPlates);  
+     });  
+   
+     // Create base maps object  
+     var baseMaps = {  
+       "Street Map": street,  
+       "Topographic Map": topo  
+     };  
+   
+     // Create overlay object  
+     var overlayMaps = {  
+       "Earthquakes": earthquakes,  
+       "Tectonic Plates": tectonicPlates  
+     };  
+   
+     // Add the default layer  
+     street.addTo(map);  
+     earthquakes.addTo(map);  
+     tectonicPlates.addTo(map);  
+   
+     // Add layer control  
+     L.control.layers(baseMaps, overlayMaps, {  
+       collapsed: false  
+     }).addTo(map);  
+   
+     // Add legend  
+     var legend = L.control({position: 'bottomright'});  
+     legend.onAdd = function(map) {  
+       var div = L.DomUtil.create('div', 'legend');  
+       var depths = [-10, 10, 30, 50, 70, 90];  
+         
+       div.innerHTML = '<h4>Depth (km)</h4>';  
+         
+       for (var i = 0; i < depths.length; i++) {  
+         div.innerHTML +=   
+           '<i style="background:' + calculateColor(depths[i] + 1) + '"></i> ' +  
+           depths[i] + (depths[i + 1] ? '&ndash;' + depths[i + 1] + '<br>' : '+');  
+       }  
+         
+       return div;  
+     };  
+     legend.addTo(map);  
+   </script>  
+ </body>  
+ </html>  
